@@ -1,0 +1,9 @@
+flask
+git+https://github.com/edaiofficial/mmtafrica.git
+ollama
+speechrecognition
+python-dotenv
+pyttsx3
+replicate
+tensorflow[and-cuda]
+pre-commit

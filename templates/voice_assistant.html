@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Voice Assistant</h1>
+  <div>
+    <select id="language-select">
+      <option value="en">English</option>
+      <option value="yo">Yoruba</option>
+      <option value="fon">Fon</option>
+      <option value="fr">French</option>
+    </select>
+  </div>
+  <div>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn">Stop Recording</button>
+  </div>
+  <div id="response-container">
+    <!-- Voice assistant response will be displayed here -->
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    // JavaScript code for handling voice recording and processing
+    // ...
+  </script>
+{% endblock %}
