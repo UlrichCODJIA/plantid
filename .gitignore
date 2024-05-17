@@ -1,5 +1,10 @@
 ASR_model_training/
 mmtafrica/
-venv/
 models/
 **/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
