@@ -8,3 +8,5 @@ models/
 .Python
 env/
 venv/
+.env
+*.log
