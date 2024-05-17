@@ -1,0 +1,5 @@
+ASR_model_training/
+mmtafrica/
+venv/
+models/
+**/__pycache__/
