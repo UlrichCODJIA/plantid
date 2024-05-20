@@ -1,0 +1,12 @@
+fasttext
+flask
+ollama
+pre-commit
+python-dotenv
+pyttsx3
+replicate
+speechrecognition
+tenacity
+tensorflow[and-cuda]
+whisper
+git+https://github.com/edaiofficial/mmtafrica.git

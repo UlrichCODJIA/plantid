@@ -1,24 +1,24 @@
-# text_to_image.py
 import logging
 import os
 import base64
 import requests
 import replicate
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
 
 class TextToImageGenerator:
     def __init__(self, stability_api_key=None, replicate_api_key=None):
-        self.stability_api_key = stability_api_key or os.environ.get(
-            "STABILITY_API_KEY"
+        self.stability_api_key = (
+            stability_api_key or current_app.config["STABILITY_API_KEY"]
         )
-        self.replicate_api_key = replicate_api_key or os.environ.get(
-            "REPLICATE_API_KEY"
+        self.replicate_api_key = (
+            replicate_api_key or current_app.config["REPLICATE_API_KEY"]
         )
         if not self.stability_api_key or not self.replicate_api_key:
             raise ValueError("Missing Stability or Replicate API key")
-        self.stability_api_host = os.getenv("API_HOST", "https://api.stability.ai")
+        self.stability_api_host = current_app.config["STABILITY_API_HOST"]
         self.stability_engine_id = "stable-diffusion-v1-6"
         self.replicate_scheduler = "K_EULER"
 

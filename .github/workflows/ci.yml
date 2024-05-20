@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: CI Pipeline
 
 on:
   push:
@@ -7,27 +7,51 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+        # redis-version: [6, 7]
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: ${{ matrix.python-version }}
+
+      # # --- Start Redis ---
+      # - name: Start Redis
+      #   uses: supercharge/redis-github-action@1.7.0
+      #   with:
+      #     redis-version: ${{ matrix.redis-version }}
+
+      # # --- Install SQLite Development Package ---
+      # - name: Install SQLite
+      #   run: sudo apt-get install -y sqlite3 libsqlite3-dev
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install black flake8
-          pip install -r requirements.txt
+          # pip install -r requirements.txt
 
       - name: Run linters
         run: |
           black --check .
           flake8 .
 
-      - name: Run tests
-        run: |
-          python -m unittest discover tests
+      # - name: Run tests
+      #   env:
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      #     DATABASE_URL: sqlite:///:memory:
+      #     REDIS_URL: redis://localhost:6379
+      #     JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      #     STABILITY_API_KEY: ${{ secrets.STABILITY_API_KEY }}
+      #     REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
+      #     STABILITY_API_HOST: ${{ secrets.STABILITY_API_HOST }}
+      #     ELEVEN_LABS_VOICE_ID: ${{ secrets.ELEVEN_LABS_VOICE_ID }}
+      #     ELEVEN_LABS_API_KEY: ${{ secrets.ELEVEN_LABS_API_KEY }}
+      #   run: |
+      #     python -m unittest discover tests

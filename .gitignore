@@ -1,6 +1,6 @@
 ASR_model_training/
 mmtafrica/
-models/
+ai_models/
 **/__pycache__/
 *.pyc
 *.pyo

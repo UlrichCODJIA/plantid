@@ -1,5 +1,5 @@
-import re
 import requests
+
 
 def validate_text(text):
     """
@@ -15,12 +15,9 @@ def validate_text(text):
         ValueError: If the input text is empty or contains only whitespace characters.
     """
     if not text or not text.strip():
-        raise ValueError("Input text cannot be empty or contain only whitespace characters.")
-
-    # Add any additional validation rules as needed
-    # For example, check if the text contains only alphanumeric characters:
-    # if not re.match(r'^[\w\s]+$', text):
-    #     raise ValueError("Input text must contain only alphanumeric characters and whitespace.")
+        raise ValueError(
+            "Input text cannot be empty or contain only whitespace characters."
+        )
 
     return True
 

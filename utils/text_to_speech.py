@@ -1,7 +1,6 @@
-# text_to_speech.py
 import logging
-import os
 import requests
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +9,8 @@ CHUNK_SIZE = 1024
 
 class TextToSpeechGenerator:
     def __init__(self, voice_id=None, api_key=None):
-        self.voice_id = voice_id or os.environ.get("ELEVEN_LABS_VOICE_ID")
-        self.api_key = api_key or os.environ.get("ELEVEN_LABS_API_KEY")
+        self.voice_id = voice_id or current_app.config["ELEVEN_LABS_VOICE_ID"]
+        self.api_key = api_key or current_app.config["ELEVEN_LABS_API_KEY"]
         if not self.voice_id or not self.api_key:
             raise ValueError("Missing voice ID or API key")
 
