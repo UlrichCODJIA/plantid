@@ -1,5 +1,4 @@
 import logging
-import os
 import base64
 import requests
 import replicate
@@ -45,11 +44,13 @@ class TextToImageGenerator:
 
         if size not in sizes:
             raise ValueError(
-                "Invalid size. Please choose from: small, medium, big, landscape, portrait."
+                "Invalid size. Please choose from:"
+                " small, medium, big, landscape, portrait."
             )
 
         response = requests.post(
-            f"{self.stability_api_host}/v1/generation/{self.stability_engine_id}/text-to-image",
+            f"{self.stability_api_host}"
+            "/v1/generation/{self.stability_engine_id}/text-to-image",
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json",
@@ -68,7 +69,7 @@ class TextToImageGenerator:
         if response.status_code != 200:
             try:
                 self.generate_image_from_text_replicate(prompt)
-            except Exception as e:
+            except Exception:
                 raise Exception(f"Non-200 response: {response.text}")
 
         data = response.json()
@@ -83,7 +84,8 @@ class TextToImageGenerator:
         input = {"prompt": prompt, "scheduler": self.replicate_scheduler}
 
         output = replicate.run(
-            "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+            "stability-ai/stable-diffusion:"
+            "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
             input=input,
         )
         return output

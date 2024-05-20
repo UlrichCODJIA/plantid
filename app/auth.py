@@ -1,8 +1,5 @@
-from datetime import timedelta
-import os
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import (
-    JWTManager,
     create_access_token,
     create_refresh_token,
     get_jwt,

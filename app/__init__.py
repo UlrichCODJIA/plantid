@@ -1,7 +1,6 @@
 import logging
 import time
 from flask_jwt_extended import JWTManager
-from flask_sqlalchemy import SQLAlchemy
 import redis
 from flask import Flask, jsonify
 from flask_session import Session
@@ -28,8 +27,10 @@ def create_app(args):
     app.secret_key = app.config["SECRET_KEY"]
 
     # Database configuration
-    app.db = SQLAlchemy(app)
-    from models.models import User, Conversation
+    from models.models import db
+
+    app.db = db
+    app.db.init_app(app)
 
     # Redis connection parameters
     redis_url = app.config["REDIS_URL"]

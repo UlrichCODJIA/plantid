@@ -27,9 +27,7 @@ recognizer = sr.Recognizer()
 engine = pyttsx3.init()
 
 # Initialize Celery
-celery = Celery(
-    __name__, broker=current_app.config["REDIS_URL"]
-)
+celery = Celery(__name__, broker=current_app.config["REDIS_URL"])
 
 
 # Function to get a temporary file path
@@ -276,7 +274,8 @@ def chat():
 
                 else:
                     # 2. Use LLaVA if sentence similarity is below the threshold
-                    intent_prompt = f"The user said: '{translated_text}'. Does the user want to generate an image?"
+                    intent_prompt = f"The user said: '{translated_text}'."
+                    " Does the user want to generate an image?"
                     intent_inputs = current_app.llava_processor(
                         text=intent_prompt, return_tensors="pt"
                     ).to(current_app.llava_model.device)
@@ -392,7 +391,8 @@ def chat():
                 for keyword in ["yes", "sure", "okay", "yeah"]
             ):
                 image_task = generate_image_task.delay(translated_text)
-                chatbot_response = "Okay, I'm generating an image for you. You can check the status with the provided task ID."
+                chatbot_response = "Okay, I'm generating an image for you. "
+                "You can check the status with the provided task ID."
                 new_state = "generating_image"
             else:
                 chatbot_response = (
@@ -419,10 +419,12 @@ def chat():
                 )
                 new_state = "generating_image"  # Stay in the same state
             elif image_task.state == "FAILURE":
-                chatbot_response = "Sorry, there was an error generating the image. Please try again later."
+                chatbot_response = "Sorry, there was an error generating the image."
+                " Please try again later."
                 new_state = "conversing"  # Go back to conversing
             else:  # Unknown state
-                chatbot_response = "I'm not sure what the status of the image generation is. Please try again later."
+                chatbot_response = "I'm not sure what the status of the "
+                "image generation is. Please try again later."
                 new_state = "conversing"
 
         elif current_state == "confirming":
@@ -494,7 +496,8 @@ def delete_old_images_task():
         )  # Set the desired expiry time (e.g., 7 days)
 
         old_conversations = Conversation.query.filter(
-            Conversation.image_path != None,  # Filter conversations with image paths
+            # Filter conversations with image paths
+            Conversation.image_path is not None,
             Conversation.timestamp < image_expiry_time,
         ).all()
 

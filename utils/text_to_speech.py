@@ -16,7 +16,8 @@ class TextToSpeechGenerator:
 
     def text_to_speech(self, text, output_file):
         """
-        Generates an audio file from a given text using the ElevenLabs Text-to-Speech API.
+        Generates an audio file from a given text using
+        the ElevenLabs Text-to-Speech API.
 
         Args:
             text (str): The text to be converted to speech.

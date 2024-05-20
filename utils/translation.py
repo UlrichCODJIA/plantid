@@ -29,7 +29,8 @@ language_map = {
 
 class TranslationService:
     """
-    A service class for handling translation between languages using the MMTAfrica model.
+    A service class for handling translation
+    between languages using the MMTAfrica model.
     """
 
     @classmethod
@@ -37,13 +38,14 @@ class TranslationService:
     def get_translation(cls, source_lang, target_lang, source_sentence=None):
         """
         Translates a given sentence from the source language to the target language.
-        This method is cached using an LRU (Least Recently Used) cache to improve performance.
+        This method is cached using an LRU (Least Recently Used)
+        cache to improve performance.
 
         Args:
             source_lang (str): The source language code (e.g., 'en', 'fr', 'sw').
             target_lang (str): The target language code (e.g., 'en', 'fr', 'sw').
-            source_sentence (str, optional): The sentence to be translated. If not provided,
-                an empty string will be returned.
+            source_sentence (str, optional): The sentence to be translated.
+            If not provided, an empty string will be returned.
 
         Returns:
             str: The translated sentence, or an error message if the translation fails.

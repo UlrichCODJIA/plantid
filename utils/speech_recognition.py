@@ -84,7 +84,8 @@ def transcribe_fon(audio_path: str) -> str:
 
 
 def transcribe(audio_path: str, language: str) -> str:
-    """Transcribes an audio file by splitting it into segments and transcribing each segment in parallel.
+    """Transcribes an audio file by splitting it into segments
+    and transcribing each segment in parallel.
 
     Args:
         audio_path (str): Path to the audio file.

@@ -25,7 +25,8 @@ class ChatbotTestCase(unittest.TestCase):
             type=str,
             default="development",
             choices=["development", "production"],
-            help="Specify the app environment. Possible values: development, production. Default is development.",
+            help="Specify the app environment. Possible values:"
+            " development, production. Default is development.",
         )
         args = parser.parse_args()
 
@@ -169,7 +170,8 @@ class ChatbotTestCase(unittest.TestCase):
                 "image_url": "https://example.com/generated_image.jpg"
             }
             m.post(
-                "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+                "https://api.stability.ai/v1/generation/"
+                "stable-diffusion-xl-1024-v1-0/text-to-image",
                 json=mock_response_data,
             )
             response = self.client.post(
@@ -203,7 +205,8 @@ class ChatbotTestCase(unittest.TestCase):
         with requests_mock.Mocker() as m:
             # Mock an error from the image generation API
             m.post(
-                "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+                "https://api.stability.ai/v1/generation/"
+                "stable-diffusion-xl-1024-v1-0/text-to-image",
                 status_code=500,
             )
             response = self.client.post(

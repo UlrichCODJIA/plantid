@@ -10,7 +10,8 @@ if __name__ == "__main__":
         type=str,
         default="development",
         choices=["development", "production"],
-        help="Specify the app environment. Possible values: development, production. Default is development.",
+        help="Specify the app environment. Possible values: development, production."
+        " Default is development.",
     )
 
     args = parser.parse_args()
