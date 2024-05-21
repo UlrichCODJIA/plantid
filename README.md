@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="PLANT_ID.png" width="200" alt="project-logo">
+  <img src="PLANT_ID.png" width="300" alt="project-logo">
 </p>
 <p align="center">
     <h1 align="center">PLANTID: Multimodal Chatbot API</h1>
