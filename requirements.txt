@@ -104,7 +104,7 @@ protobuf==4.25.3
 psutil==5.8.0
 psycopg2-binary==2.9.9
 pure-eval==0.2.2
-pyarrow==5.0.0
+pyarrow==14.0.1
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pyAudioAnalysis==0.3.14
