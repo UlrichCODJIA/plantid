@@ -1,6 +1,3 @@
-ASR_model_training/
-mmtafrica/
-ai_models/
 **/__pycache__/
 *.pyc
 *.pyo
@@ -10,3 +7,4 @@ env/
 venv/
 .env
 *.log
+ai_models/mmt_translation.pt
