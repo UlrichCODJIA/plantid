@@ -78,7 +78,7 @@ This part of the app is a powerful and versatile multimodal chatbot API built us
 - PostgreSQL
 - Redis
 
-### ⚙️ Installation
+### ⚙ Installation
 
 1. Clone the repository:
 
@@ -146,7 +146,7 @@ This part of the app is a powerful and versatile multimodal chatbot API built us
 
 3. Access the API endpoints using a tool like cURL or Postman.
 
-## ⚙️ Configuration
+## ⚙ Configuration
 
 PlantID requires certain environment variables to be set for proper functioning. You can set them in a `.env` file in the project root directory. Here's an example:
 
@@ -172,7 +172,7 @@ ELEVEN_LABS_API_KEY=your-eleven-labs-api-key
    python -m unittest discover tests
    ```
 
-## 🗂️ Project Structure
+## 🗂 Project Structure
 
 ```bash
 plantid/
