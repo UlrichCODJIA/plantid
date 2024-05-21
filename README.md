@@ -41,7 +41,7 @@
 - [Overview](#-overview)
 - [Features](#-features)
 - [Getting Started](#-getting-started)
-  - [Prerequisites](#-prerequisites)
+  - [Prerequisites](#prerequisites)
   - [Installation](#-installation)
   - [Usage](#-usage)
 - [Configuration](#-configuration)
