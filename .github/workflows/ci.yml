@@ -53,4 +53,11 @@ jobs:
       #     ELEVEN_LABS_VOICE_ID: ${{ secrets.ELEVEN_LABS_VOICE_ID }}
       #     ELEVEN_LABS_API_KEY: ${{ secrets.ELEVEN_LABS_API_KEY }}
       #   run: |
-      #     python -m unittest discover tests
+      #     coverage run -m unittest discover tests
+      #     coverage xml
+
+      # - name: Upload coverage reports to Codecov
+      #   uses: codecov/codecov-action@v4.0.1
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: ./coverage.xml
