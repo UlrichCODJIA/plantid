@@ -1,10 +1,26 @@
-**/__pycache__/
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
+
+# Virtual environment
 venv/
+env/
+
+# Environment variables
 .env
+
+# Logs
+logs/
+
+# Editor files
+.vscode/
+.idea/
+
+# Other
 *.log
+*.swp
+*.bak
 ai_models/mmt_translation.pt
+mmtafrica

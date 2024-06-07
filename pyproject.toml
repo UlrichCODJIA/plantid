@@ -14,6 +14,5 @@ exclude = '''
   | dist
   | venv
   | mmtafrica
-  | ASR_model_training
 )/
 '''

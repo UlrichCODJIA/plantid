@@ -1,4 +1,5 @@
 from app import create_app
+from multilingual_webapp.app.extensions import db
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -19,5 +20,5 @@ if __name__ == "__main__":
     app = create_app(args)
 
     with app.app_context():
-        app.db.create_all()
+        db.create_all()
     app.run()

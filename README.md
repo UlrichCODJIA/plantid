@@ -60,15 +60,14 @@ This part of the app is a powerful and versatile multimodal chatbot API built us
 
 ## 🌟 Features
 
-- 💬 Multilingual chatbot functionality
-- 🎙️ Real-time speech recognition
-- 🌍 Text translation between various languages
-- 🖼️ Text-to-image generation
-- 🔒 User authentication and authorization
-- 📊 Sentiment analysis for user inputs
-- 🚀 Scalable architecture with Celery task queue
-- 🧪 Comprehensive test suite
-- 🔄 Continuous Integration and Deployment (CI/CD)
+- 💬 Multilingual support: The chatbot can understand and respond in multiple languages.
+- 🎤📷💬 Text, audio, and image inputs: Users can interact with the chatbot using text, audio recordings, or images.
+- 🎙️ Speech recognition: User audio inputs are transcribed using the Whisper model for accurate speech recognition.
+- 🌐 Language translation: The application automatically translates user inputs and chatbot responses to the desired language.
+- 🤖 Dialogue management: The chatbot maintains a conversation flow and adapts its responses based on the user's input and the current dialogue state.
+- 🖼️ Image generation: The chatbot can generate images based on user prompts using the Stability AI API or Replicate API.
+- 🔊 Text-to-speech: Chatbot responses can be converted to audio using the Eleven Labs API for a more engaging user experience.
+- 😊 Sentiment analysis for user inputs
 
 ## 🚀 Getting Started
 
