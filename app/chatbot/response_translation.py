@@ -1,4 +1,4 @@
-from multilingual_webapp.app.chatbot.utils.translation.translation import (
+from app.chatbot.utils.translation.translation import (
     TranslationService,
 )
 

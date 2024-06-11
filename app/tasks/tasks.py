@@ -1,27 +1,26 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
-import os
-from celery import Celery
-from celery.schedules import crontab
+from celery import shared_task
+from flask import current_app
 
-from multilingual_webapp.app.chatbot.utils.speech_recognition.speech_recognition import (
+from app.chatbot.utils.speech_recognition.speech_recognition import (
     transcribe_audio,
     transcribe_fon,
     transcribe_yoruba,
 )
-from multilingual_webapp.app.chatbot.utils.text_to_image.text_to_image import (
+from app.chatbot.utils.text_to_image.text_to_image import (
     TextToImageGenerator,
 )
-from multilingual_webapp.app.extensions import db
-from multilingual_webapp.app.models.Conversation import Conversation
-from multilingual_webapp.logger import configure_logger
+from app.extensions import celery_manager
+from app.models.Conversation import Conversation
+from logger import configure_logger
 
-logger = configure_logger(log_level=logging.DEBUG, log_file="logs/chatbot.log")
+logger = configure_logger(log_level=logging.DEBUG, log_file="logs/chat.log")
 
-celery_app = Celery(__name__)
+celery_app = celery_manager.get_celery_app()
 
 
-@celery_app.task(name="transcribe_task")
+@shared_task(name="transcribe_task", ignore_result=False)
 def transcribe_task(audio_path, language):
     try:
         if language == "yoruba":
@@ -37,42 +36,25 @@ def transcribe_task(audio_path, language):
 
 
 # Image generation task
-@celery_app.task(name="generate_image_task")
-def generate_image_task(prompt):
-    response = TextToImageGenerator.generate_image_from_text_stability(prompt=prompt)
-    return response["image_url"]
+@shared_task(name="generate_image_task", ignore_result=False)
+def generate_image_task(prompt, conversation_id):
+    with current_app.app_context():
+        conversation = Conversation.objects(id=conversation_id).first()
+        if not conversation:
+            return
 
+        conversation.image_task_status = "STARTED"
+        conversation.image_task_started_at = datetime.utcnow()
+        conversation.save()
 
-# Schedule a task to delete old images
-@celery_app.task(name="delete_old_images_task")
-def delete_old_images_task():
-    """Deletes image files associated with conversations older than a certain time."""
-    try:
-        image_expiry_time = datetime.utcnow() - timedelta(
-            days=7
-        )  # Set the desired expiry time (e.g., 7 days)
-
-        old_conversations = Conversation.query.filter(
-            # Filter conversations with image paths
-            Conversation.image_path is not None,
-            Conversation.timestamp < image_expiry_time,
-        ).all()
-
-        for conversation in old_conversations:
-            if os.path.exists(conversation.image_path):
-                os.remove(conversation.image_path)
-                conversation.image_path = None  # Clear the path in the database
-        db.session.commit()
-
-        logger.info("Deleted old images successfully.")
-    except Exception as e:
-        logger.error(f"Error deleting old images: {e}")
-
-
-# Schedule the cleanup task to run periodically
-celery_app.conf.beat_schedule = {
-    "delete_old_images": {
-        "task": "delete_old_images_task",
-        "schedule": crontab(minute=0, hour=0),  # Run daily at midnight
-    }
-}
+        try:
+            generate_image_data = (
+                TextToImageGenerator.generate_image_from_text_stability(prompt=prompt)
+            )
+            conversation.image_task_status = "SUCCESS"
+            conversation.image_task_completed_at = datetime.utcnow()
+            return generate_image_data[0]["image_url"]
+        except Exception as e:
+            conversation.image_task_status = "FAILURE"
+        finally:
+            conversation.save()

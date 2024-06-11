@@ -1,10 +1,10 @@
 import logging
-from mmtafrica.mmtafrica import translate
+from mmtafrica.mmtafrica import translate, load_params
 from functools import lru_cache
 from flask import current_app
 
-from multilingual_webapp.logger import configure_logger
-from multilingual_webapp.utils.utils import handle_translation_error, validate_text
+from logger import configure_logger
+from app.utils.utils import handle_translation_error, validate_text
 
 logger = configure_logger(log_level=logging.DEBUG, log_file="logs/translation.log")
 
@@ -26,7 +26,7 @@ class TranslationService:
     """
 
     @classmethod
-    def load_model(cls):
+    def load_model(cls, device):
         """
         Load the MMTAFRICA translation model.
 
@@ -34,8 +34,8 @@ class TranslationService:
             dict: The loaded model parameters.
         """
         try:
-            checkpoint = "multilingual_webapp/ai_models/mmt_translation.pt"
-            params = translate.load_params({"checkpoint": checkpoint, "device": "cpu"})
+            checkpoint = "ai_models/mmt_translation.pt"
+            params = load_params({"checkpoint": checkpoint, "device": device})
             return params
         except Exception as e:
             raise Exception(f"Failed to load MMTAFRICA model: {e}") from e

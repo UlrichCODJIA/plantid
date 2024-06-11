@@ -8,9 +8,9 @@ import pyttsx3
 from PIL import Image
 import requests_mock
 
-from multilingual_webapp.app import create_app
-from multilingual_webapp.app.extensions import db
-from multilingual_webapp.app.models.Conversation import Conversation
+from app import create_app
+from app.extensions import db
+from app.models.Conversation import Conversation
 
 
 class ChatbotTestCase(unittest.TestCase):
@@ -119,20 +119,6 @@ class ChatbotTestCase(unittest.TestCase):
         data = json.loads(response.data)
         self.assertIn("response", data)
         self.assertIn("blue", data["response"].lower())
-
-    def test_chat_image_url_input(self):
-        test_image_url = "https://example.com/test_image.jpg"
-        with requests_mock.Mocker() as m:
-            m.get(test_image_url, content=b"mock image content")
-            response = self.client.post(
-                "/chat",
-                headers={"Authorization": f"Bearer {self.access_token}"},
-                data={"language": "English", "image_url": test_image_url},
-            )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertIn("response", data)
-        self.assertTrue(len(data["response"]) > 0)
 
     def test_chat_invalid_input(self):
         temp_audio_path = self._create_temp_audio()

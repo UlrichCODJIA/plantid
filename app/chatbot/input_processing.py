@@ -1,83 +1,93 @@
+import os
 from flask import current_app
-import requests
 from PIL import Image
+from werkzeug.utils import secure_filename
 
-from multilingual_webapp.app.chatbot.utils.translation.translation import (
-    TranslationService,
-)
-from multilingual_webapp.app.tasks.tasks import transcribe_task
-from multilingual_webapp.utils.utils import get_temp_file_path
+from app.chatbot.utils.translation.translation import TranslationService
+from app.chatbot.routes import logger
+from app.tasks.tasks import transcribe_task
+from app.chatbot.utils.aws.s3 import upload_file_to_s3
+from app.chatbot.utils.aws.cloudwatch import create_cloudwatch_rule
+from app.utils.utils import get_temp_file_path
 
 
-def process_input(audio_file, text_input, image_url, image_file, language):
+def process_input(audio_file, text_input, image_file, language, user_id):
     translated_text = None
     image_tensor = None
     inputs = None
     temp_file_path = None
+    image_file_url = None
+    audio_file_url = None
+    s3_bucket_name = os.environ.get("AWS_BUCKET_NAME")
 
-    if audio_file:
-        temp_file_path = get_temp_file_path(suffix=".wav")
-        audio_file.save(temp_file_path)
-        transcription_result = transcribe_task.delay(temp_file_path, language)
-        transcript = transcription_result.get()
-
-        if language != "English":
-            translated_text = TranslationService.get_translation(
-                source_lang=language,
-                target_lang="English",
-                source_sentence=transcript,
+    try:
+        if audio_file:
+            temp_file_path = get_temp_file_path(suffix=".wav")
+            audio_file.save(temp_file_path)
+            audio_file_url, audio_object_key = upload_file_to_s3(
+                temp_file_path, s3_bucket_name, f"audios/{user_id}"
             )
-        else:
-            translated_text = transcript
-
-        inputs = current_app.llava_processor(
-            text=translated_text, return_tensors="pt"
-        ).to(current_app.llava_model.device)
-
-    elif text_input:
-        if language != "English":
-            translated_text = TranslationService.get_translation(
-                source_lang=language,
-                target_lang="English",
-                source_sentence=text_input,
+            create_cloudwatch_rule(
+                audio_object_key, "plantid-chatbot-image-remover", delay_minutes=10080
             )
-        else:
-            translated_text = text_input
+            transcription_result = transcribe_task.delay(temp_file_path, language)
+            transcript = transcription_result.get()
 
-        inputs = current_app.llava_processor(
-            text=translated_text, return_tensors="pt"
-        ).to(current_app.llava_model.device)
+            if language != "English":
+                translated_text = TranslationService.get_translation(
+                    source_lang=language,
+                    target_lang="English",
+                    source_text=transcript,
+                )
+            else:
+                translated_text = transcript
 
-    if image_file or image_url:
+        elif text_input:
+            if language != "English":
+                translated_text = TranslationService.get_translation(
+                    source_lang=language,
+                    target_lang="English",
+                    source_sentence=text_input,
+                )
+            else:
+                translated_text = text_input
+
         if image_file:
-            temp_file_path = get_temp_file_path(suffix=".jpg")
+            filename = secure_filename(image_file.filename)
+            temp_file_path = get_temp_file_path(
+                suffix=f".{filename.rsplit('.', 1)[1].lower()}"
+            )
             image_file.save(temp_file_path)
+            image_file_url, image_object_key = upload_file_to_s3(
+                temp_file_path, s3_bucket_name, f"images/{user_id}"
+            )
+            create_cloudwatch_rule(
+                image_object_key, "plantid-chatbot-image-remover", delay_minutes=10080
+            )
             image = Image.open(temp_file_path)
-        elif image_url:
-            try:
-                response = requests.get(image_url, stream=True)
-                response.raise_for_status()
-                temp_file_path = get_temp_file_path(suffix=".jpg")
-                with open(temp_file_path, "wb") as f:
-                    f.write(response.content)
-                image = Image.open(temp_file_path)
-            except requests.exceptions.RequestException as e:
-                raise Exception(f"Error downloading image: {e}")
 
-        try:
             image_tensor = current_app.llava_processor(
                 images=image, return_tensors="pt"
             ).pixel_values.to(current_app.llava_model.device)
-        except Exception as e:
-            raise Exception(f"Error processing image: {e}")
 
         if translated_text:
-            text_input = translated_text + "\n<image>"
+            text_input = (
+                translated_text + "\n<image>" if image_tensor else translated_text
+            )
         else:
-            text_input = "<image>"
+            text_input = "<image>" if image_tensor else None
 
-        inputs = current_app.llava_processor(
-            text=text_input, images=image_tensor, return_tensors="pt"
-        ).to(current_app.llava_model.device)
+        if text_input:
+            inputs = current_app.llava_processor(
+                text=text_input, images=image_tensor, return_tensors="pt"
+            ).to(current_app.llava_model.device)
 
-    return inputs, translated_text, temp_file_path
+    except Exception as e:
+        logger.error(f"Error in process_input: {e}")
+        raise Exception("Error processing input")
+
+    finally:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+    return inputs, translated_text, image_file_url, audio_file_url

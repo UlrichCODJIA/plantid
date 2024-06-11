@@ -6,7 +6,6 @@ flake8
 Flask-JWT-Extended
 flask-redis
 Flask-Session
-Flask-SQLAlchemy
 google-auth-oauthlib
 hiredis
 librosa

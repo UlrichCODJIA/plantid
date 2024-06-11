@@ -3,7 +3,7 @@ import functools
 import tenacity
 from flask import current_app
 
-from multilingual_webapp.app.chatbot.utils.speech_recognition.audio_processing import (
+from app.chatbot.utils.speech_recognition.audio_processing import (
     convert_to_wav,
     split_audio,
 )

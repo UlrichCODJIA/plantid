@@ -3,9 +3,10 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import logging
-import redis
-from flask import Flask
+from flask import Flask, request
 import whisper
+import nltk
+import time
 
 import torch
 from logger import configure_logger
@@ -15,46 +16,70 @@ from transformers import (
     # pipeline,
     LlavaNextProcessor,
     LlavaNextForConditionalGeneration,
-    # AutoProcessor,
-    # AutoModelForSpeechSeq2Seq,
-    # AutoModelForCTC,
+    AutoProcessor,
+    AutoModelForSpeechSeq2Seq,
+    AutoModelForCTC,
 )
 
-from multilingual_webapp.app.tasks.tasks import celery_app
-from multilingual_webapp.app.extensions import db, jwt, session
-from multilingual_webapp.utils.utils import retry_on_exception
-from multilingual_webapp.app.chatbot.utils.translation.translation import (
-    TranslationService,
+from app.extensions import (
+    jwt,
+    session,
+    celery_manager,
+    redis_manager,
+    swagger,
+    limiter,
 )
+from app.metrics import log_latency, log_request, start_metrics_server
+from app.database import initialize_db
 
 logger = configure_logger(log_level=logging.DEBUG, log_file="logs/app.log")
 
+chat_logger = configure_logger(log_level=logging.DEBUG, log_file="logs/chat.log")
+
 
 def create_app(args):
+
     app = Flask(__name__)
     if args.environment == "production":
-        app.config.from_object("multilingual_webapp.config.settings.ProdConfig")
+        app.config.from_object("app.config.ProdConfig")
     elif args.environment == "testing":
-        app.config.from_object("multilingual_webapp.config.settings.TestConfig")
+        app.config.from_object("app.config.TestConfig")
     else:
-        app.config.from_object("multilingual_webapp.config.settings.DevConfig")
+        app.config.from_object("app.config.DevConfig")
 
-    # Initialize redis
-    init_redis()
+    # Initialize prometheus metrics
+    @app.before_request
+    def before_request():
+        request.start_time = time.time()
+
+    @app.after_request
+    def after_request(response):
+        latency = time.time() - request.start_time
+        endpoint = request.endpoint
+        log_request(endpoint)
+        log_latency(endpoint, latency)
+        return response
 
     # Initialize extensions
-    db.init_app(app)
+    redis_manager.init_app(app)
+    initialize_db(app)
     jwt.init_app(app)
     session.init_app(app)
+    celery_manager.init_app(app)
+    swagger.init_app(app)
+    limiter.init_app(app)
 
-    # Initialize Celery
-    celery_app.conf.update(app.config)
+    start_metrics_server()
 
     # Initialize models
     init_models(app)
 
+    # Download nltk data
+    nltk.download("punkt")
+    nltk.download("stopwords")
+
     # Register blueprints
-    from multilingual_webapp.app.chatbot import chatbot_blueprint
+    from app.chatbot import chatbot_blueprint
 
     app.register_blueprint(chatbot_blueprint)
 
@@ -63,8 +88,9 @@ def create_app(args):
 
 def init_translation_model(app):
     try:
-        with app.app_context():
-            app.mmt_params = TranslationService.load_model()
+        device = "gpu" if torch.cuda.is_available() else "cpu"
+        # with app.app_context():
+        #     app.mmt_params = TranslationService.load_model(device)
         logger.info("MMTAFRICA model loaded successfully!")
 
     except Exception as e:
@@ -78,21 +104,21 @@ def init_speech_recognition_models(app):
             app.whisper_base_model = whisper.load_model("base")
 
             # app.whisper_yoruba_pipeline = pipeline(
-            # #     "automatic-speech-recognition", model="neoform-ai/whisper-medium-yoruba"
-            # # )
-            # app.whisper_yoruba_processor = AutoProcessor.from_pretrained(
-            #     "neoform-ai/whisper-medium-yoruba"
+            #     "automatic-speech-recognition", model="neoform-ai/whisper-medium-yoruba"
             # )
-            # app.whisper_yoruba_model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            #     "neoform-ai/whisper-medium-yoruba"
+            app.whisper_yoruba_processor = AutoProcessor.from_pretrained(
+                "neoform-ai/whisper-medium-yoruba"
+            )
+            app.whisper_yoruba_model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                "neoform-ai/whisper-medium-yoruba"
+            )
+            # app.whisper_fon_pipeline = pipeline(
+            #     "automatic-speech-recognition", model="chrisjay/fonxlsr"
             # )
-            # # app.whisper_fon_pipeline = pipeline(
-            # #     "automatic-speech-recognition", model="chrisjay/fonxlsr"
-            # # )
-            # app.whisper_fon_processor = AutoProcessor.from_pretrained(
-            #     "chrisjay/fonxlsr"
-            # )
-            # app.whisper_fon_model = AutoModelForCTC.from_pretrained("chrisjay/fonxlsr")
+            app.whisper_fon_processor = AutoProcessor.from_pretrained(
+                "chrisjay/fonxlsr"
+            )
+            app.whisper_fon_model = AutoModelForCTC.from_pretrained("chrisjay/fonxlsr")
         logger.info("Speech recognition models loaded successfully!")
 
     except Exception as e:
@@ -160,23 +186,3 @@ def init_models(app):
 
     # Initialize translation model
     init_translation_model(app)
-
-
-@retry_on_exception(
-    retries=3,
-    delay=5,
-    exceptions=(redis.exceptions.ConnectionError, redis.exceptions.TimeoutError),
-)
-def init_redis(app):
-    client = redis.Redis.from_url(app.config["REDIS_URL"])
-    client.ping()
-
-    if not client:
-        logger.warning(
-            "Falling back to filesystem sessions due to Redis connection issues."
-        )
-        app.config["SESSION_TYPE"] = "filesystem"
-    else:
-        app.config["SESSION_TYPE"] = "redis"
-        app.config["SESSION_REDIS"] = client
-    return client

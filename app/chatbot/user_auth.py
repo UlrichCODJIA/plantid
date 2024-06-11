@@ -1,9 +1,9 @@
 from flask import current_app
 import requests
 
-from multilingual_webapp.app.microservice_token import MicroserviceToken
-from multilingual_webapp.app.models.models import User
-from multilingual_webapp.utils.utils import (
+from app.chatbot.utils.auth import MicroserviceToken
+from app.models.User import User
+from app.utils.utils import (
     generate_microservice_token,
     temporary_jwt_secret_key,
 )
@@ -14,8 +14,9 @@ microservice_token = MicroserviceToken()
 def authenticate_user(user_id):
     try:
         if not microservice_token.is_valid():
-            CHATBOT_JWT_SECRET_KEY = current_app.config["CHATBOT_JWT_SECRET_KEY"]
-            with temporary_jwt_secret_key(current_app, CHATBOT_JWT_SECRET_KEY):
+            with temporary_jwt_secret_key(
+                current_app, current_app.config["CHATBOT_JWT_SECRET_KEY"]
+            ):
                 token = generate_microservice_token()
                 microservice_token.refresh(
                     token,
