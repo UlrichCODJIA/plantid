@@ -3,8 +3,8 @@ from flask import current_app
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from app import chat_logger
 from app.chatbot.utils.translation.translation import TranslationService
-from app.chatbot.routes import logger
 from app.tasks.tasks import transcribe_task
 from app.chatbot.utils.aws.s3 import upload_file_to_s3
 from app.chatbot.utils.aws.cloudwatch import create_cloudwatch_rule
@@ -83,7 +83,7 @@ def process_input(audio_file, text_input, image_file, language, user_id):
             ).to(current_app.llava_model.device)
 
     except Exception as e:
-        logger.error(f"Error in process_input: {e}")
+        chat_logger.error(f"Error in process_input: {e}")
         raise Exception("Error processing input")
 
     finally:

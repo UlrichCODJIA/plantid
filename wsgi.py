@@ -1,3 +1,8 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app import create_app
 from app.metrics import start_metrics_server
 
@@ -14,6 +19,6 @@ if __name__ == "__main__":
         " Default is development.",
     )
     args = parser.parse_args()
-    start_metrics_server(port=8000)
+    start_metrics_server(port=6000)
     app = create_app(args)
-    app.run()
+    app.run(port=os.environ.get("PORT", 5000))

@@ -1,9 +1,8 @@
-from flask import request, jsonify
+from flask import Blueprint, request, jsonify, session
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from mongoengine import Q
 
 from app import chat_logger
-from app.chatbot import chatbot_blueprint
 from app.chatbot.error_handling import handle_error, handle_validation_error
 from app.chatbot.user_auth import authenticate_user
 from app.tasks.tasks import generate_image_task
@@ -12,6 +11,8 @@ from app.models.Message import Message
 from app.extensions import limiter, redis_manager
 from app.schemas.conversation import CreateConversationSchema, UpdateConversationSchema
 from app.services.chatbot_service import handle_post_request, is_user_throttled
+
+chatbot_blueprint = Blueprint("chatbot", __name__, url_prefix="/api/v1")
 
 redis_client = redis_manager.get_redis_client()
 
@@ -68,22 +69,33 @@ def get_conversation_by_id(conversation_id):
 
 
 @chatbot_blueprint.route(
-    "/conversations/<int:conversation_id>",
+    "/conversations",
     defaults={"conversation_id": None},
+    methods=["POST"],
+)
+@chatbot_blueprint.route(
+    "/conversations/<string:conversation_id>",
     methods=["POST"],
 )
 @jwt_required()
 @limiter.limit("40/minute")
 def chat(conversation_id):
+    new_chat = False
     try:
         user_id = get_jwt_identity()
         user = authenticate_user(user_id)
         if not user:
             return handle_error("Unauthorized access", 403)
 
+        language = request.form.get("language", user.language_preference)
+
+        audio_file = request.files.get("audio")
+        text_input = request.form.get("text")
+        image_file = request.files.get("image")
+
         if conversation_id:
             conversation = redis_client.get(f"conversation:{conversation_id}")
-            if conversation is None:
+            if not conversation:
                 conversation = Conversation.objects(
                     Q(id=conversation_id) & Q(user_id=user_id)
                 ).first()
@@ -96,6 +108,7 @@ def chat(conversation_id):
             else:
                 conversation = Conversation.from_json(conversation)
         else:
+            new_chat = True
             try:
                 if is_user_throttled(user_id):
                     return handle_error(
@@ -109,7 +122,8 @@ def chat(conversation_id):
 
                 conversation = Conversation(**data)
                 conversation.save()
-                return jsonify(conversation.to_dict()), 201
+                if bool(audio_file) + bool(text_input) + bool(image_file) < 1:
+                    return jsonify(conversation.to_dict()), 201
             except Exception as e:
                 chat_logger.error(f"Error in create_conversation: {e}")
                 return handle_error(
@@ -131,11 +145,20 @@ def chat(conversation_id):
             sender="bot",
         )
         return handle_post_request(
-            request, user, conversation, user_message, bot_message
+            session,
+            user,
+            conversation,
+            user_message,
+            bot_message,
+            language,
+            audio_file,
+            text_input,
+            image_file,
+            new_chat,
         )
 
     except Exception as e:
-        chat_logger.error(f"Error in get_conversation: {e}")
+        chat_logger.error(f"Error in chat: {e}")
         return handle_error(
             "An error occurred while retrieving the conversation. Please try again later.",
             500,

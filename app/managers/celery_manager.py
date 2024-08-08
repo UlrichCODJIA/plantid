@@ -17,7 +17,6 @@ class CeleryManager:
         self.celery_app = Celery(app.name, task_cls=FlaskTask)
         self.celery_app.config_from_object(app.config["CELERY"])
         self.celery_app.set_default()
-        app.extensions["celery"] = self.celery_app
 
     def get_celery_app(self):
         if self.celery_app is None:

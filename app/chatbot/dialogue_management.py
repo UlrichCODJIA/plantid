@@ -179,7 +179,7 @@ def handle_end_state():
     return "Goodbye!", DIALOGUE_STATES["end"]
 
 
-def handle_default_state(req, inputs):
+def handle_default_state(session, inputs):
     """
     Handle the default state based on the translated text, sentiment, and inputs.
 
@@ -196,7 +196,7 @@ def handle_default_state(req, inputs):
         )
     new_state = (
         DIALOGUE_STATES["confirming"]
-        if should_transition_to_confirming(req, chatbot_response)
+        if should_transition_to_confirming(session, chatbot_response)
         else DIALOGUE_STATES["conversing"]
     )
     return chatbot_response, new_state
@@ -246,7 +246,7 @@ def check_image_intent(translated_text):
     return "yes" in intent_response.lower()
 
 
-def should_transition_to_confirming(req, chatbot_response):
+def should_transition_to_confirming(session, chatbot_response):
     """
     Check if the chatbot response indicates a transition to the confirming state.
 
@@ -270,7 +270,7 @@ def should_transition_to_confirming(req, chatbot_response):
     if max_similarity >= similarity_threshold:
         return True
 
-    consecutive_short_responses = req.session.get("consecutive_short_responses", 0)
+    consecutive_short_responses = session.get("consecutive_short_responses", 0)
     short_response_threshold = SHORT_RESPONSE_THRESHOLD
     short_response_length = SHORT_RESPONSE_LENGTH
 
@@ -279,27 +279,30 @@ def should_transition_to_confirming(req, chatbot_response):
     else:
         consecutive_short_responses = 0
 
-    req.session["consecutive_short_responses"] = consecutive_short_responses
+    session["consecutive_short_responses"] = consecutive_short_responses
 
     return consecutive_short_responses >= short_response_threshold
 
 
-def manage_dialogue(req, translated_text, inputs, language, conversation):
+def manage_dialogue(session, translated_text, inputs, language, conversation):
     sentiment = analyze_sentiment(translated_text)
     current_state = conversation.dialogue_state
     intent = False
     image_task_id = None
     image_url = None
 
+    print("current_state is: ", current_state)
+
     if current_state == DIALOGUE_STATES["greeting"]:
         chatbot_response, new_state = handle_greeting_state(sentiment)
     elif current_state == DIALOGUE_STATES["conversing"]:
-        intent = check_image_intent(translated_text)
-        if intent:
-            chatbot_response = "What would you like me to generate an image of?"
-            new_state = "confirming_image_generation"
-        else:
-            chatbot_response, new_state = handle_default_state(req, inputs)
+        chatbot_response, new_state = handle_default_state(session, inputs)
+        # intent = check_image_intent(translated_text)
+        # if intent:
+        #     chatbot_response = "What would you like me to generate an image of?"
+        #     new_state = "confirming_image_generation"
+        # else:
+        #     chatbot_response, new_state = handle_default_state(session, inputs)
     elif current_state == "confirming_image_generation":
         chatbot_response, new_state, image_task_id = (
             handle_confirming_image_generation_state(translated_text)
@@ -325,7 +328,7 @@ def manage_dialogue(req, translated_text, inputs, language, conversation):
     elif current_state == DIALOGUE_STATES["end"]:
         chatbot_response, new_state = handle_end_state()
     else:
-        chatbot_response, new_state = handle_default_state(req, inputs)
+        chatbot_response, new_state = handle_default_state(session, inputs)
 
     translated_response = translate_response(chatbot_response, language)
 
@@ -335,4 +338,4 @@ def manage_dialogue(req, translated_text, inputs, language, conversation):
         # "audio_data": audio_file_url,
     }
 
-    return translated_response, new_state, sentiment, image_task_id, bot_message_fields
+    return translated_response, new_state, image_task_id, bot_message_fields

@@ -20,7 +20,7 @@ def authenticate_user(user_id):
                 token = generate_microservice_token()
                 microservice_token.refresh(
                     token,
-                    current_app.config["CHATBOT_JWT_ACCESS_EXPIRES_IN"],
+                    int(current_app.config["CHATBOT_JWT_ACCESS_EXPIRES_IN"]),
                 )
 
         headers = {"Authorization": f"Bearer {microservice_token.token}"}

@@ -28,13 +28,19 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def handle_post_request(req, user, conversation, user_message, bot_message):
+def handle_post_request(
+    session,
+    user,
+    conversation,
+    user_message,
+    bot_message,
+    language,
+    audio_file,
+    text_input,
+    image_file,
+    new_chat,
+):
     try:
-        language = req.form.get("language", user.language_preference)
-
-        audio_file = req.files.get("audio")
-        text_input = req.form.get("text")
-        image_file = req.files.get("image")
 
         if audio_file and text_input:
             return handle_error("Please provide only one type of input", 400)
@@ -47,7 +53,7 @@ def handle_post_request(req, user, conversation, user_message, bot_message):
         bot_message.text = text_input
 
         return handle_chat(
-            req,
+            session,
             user,
             audio_file,
             text_input,
@@ -56,6 +62,7 @@ def handle_post_request(req, user, conversation, user_message, bot_message):
             conversation,
             user_message,
             bot_message,
+            new_chat,
         )
 
     except Exception as e:
@@ -67,7 +74,7 @@ def handle_post_request(req, user, conversation, user_message, bot_message):
 
 
 def handle_chat(
-    req,
+    session,
     user,
     audio_file,
     text_input,
@@ -76,26 +83,26 @@ def handle_chat(
     conversation,
     user_message,
     bot_message,
+    new_chat,
 ):
     try:
         inputs, translated_text, image_file_url, audio_file_url = process_input(
             audio_file, text_input, image_file, language, conversation.user_id
         )
 
-        urls = {
+        message_fields = {
+            "text": text_input,
             "image_url": image_file_url,
             "audio_data": audio_file_url,
         }
 
-        for attr, url in urls.items():
-            if url:
-                setattr(user_message, attr, url)
+        for attr, message_field in message_fields.items():
+            if message_field:
+                setattr(user_message, attr, message_field)
         user_message.save()
 
         translated_response, new_state, image_task_id, bot_message_fields = (
-            manage_dialogue(
-                req, translated_text, inputs, language, conversation, bot_message
-            )
+            manage_dialogue(session, translated_text, inputs, language, conversation)
         )
 
         for attr, field in bot_message_fields.items():
@@ -115,7 +122,10 @@ def handle_chat(
         conversation.messages.extend([user_message, bot_message])
         conversation.save()
 
-        response_data = {"response": translated_response}
+        if new_chat:
+            response_data = {"conversation_id": conversation.to_dict()["id"]}
+        else:
+            response_data = {"response": translated_response}
 
         if image_task_id:
             response_data["image_task_id"] = image_task_id

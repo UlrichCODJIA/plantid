@@ -1,0 +1,4 @@
+scrape_configs:
+  - job_name: 'plantid_chatbot'
+    static_configs:
+      - targets: ['localhost:5000']

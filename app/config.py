@@ -1,9 +1,6 @@
 from datetime import timedelta
 import logging
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class Config:
@@ -31,12 +28,12 @@ class Config:
     REDIS_URL = os.environ.get("REDIS_URL")
 
     # Celery Configuration
-    CELERY = (
-        dict(
-            broker_url=os.environ.get("REDIS_URL"),
-            result_backend=os.environ.get("REDIS_URL"),
-            task_ignore_result=True,
-        ),
+    CELERY = dict(
+        broker_url=os.environ.get("REDIS_URL"),
+        result_backend=os.environ.get("REDIS_URL"),
+        task_ignore_result=True,
+        broker_connection_retry_on_startup=True,
+        include=["app.tasks.tasks"],
     )
 
     SWAGGER = {
@@ -51,6 +48,8 @@ class Config:
 
     CHATBOT_JWT_SECRET_KEY = os.environ.get("CHATBOT_JWT_SECRET_KEY")
     CHATBOT_JWT_ACCESS_EXPIRES_IN = os.environ.get("CHATBOT_JWT_ACCESS_EXPIRES_IN")
+
+    PLANTID_DB_API_BASE_URL = os.environ.get("PLANTID_DB_API_BASE_URL")
 
     # Redis for Token Blocklist
     JWT_BLOCKLIST_ENABLED = True

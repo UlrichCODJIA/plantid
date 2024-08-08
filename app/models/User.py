@@ -28,7 +28,16 @@ class User:
         self.language_preference: str = data.get("languagePreference", "English")
         self.voice_preference: Optional[str] = data.get("voicePreference")
         self.image_generation_style: Optional[str] = data.get("imageGenerationStyle")
-        self.registration_date: datetime = datetime.fromisoformat(
-            data.get("registrationDate")
-        )
+        self.registration_date: datetime = self.parse_date(data.get("registrationDate"))
         self.role: str = data.get("role", "user")
+
+    def parse_date(self, date_string):
+        if date_string:
+            return datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+        return None
+
+    def __str__(self):
+        return f"User(id={self.id}, username={self.username}, email={self.email})"
+
+    def __repr__(self):
+        return self.__str__()

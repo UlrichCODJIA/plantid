@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 import os
-import sys
 import unittest
 import json
 import tempfile
@@ -9,7 +8,6 @@ from PIL import Image
 import requests_mock
 
 from app import create_app
-from app.extensions import db
 from app.models.Conversation import Conversation
 
 
@@ -50,11 +48,8 @@ class ChatbotTestCase(unittest.TestCase):
         self.app = create_app(self.args)
         self.app_context = self.app.app_context()
         self.app_context.push()
-        db.create_all()
 
     def _remove_app_context(self):
-        db.session.remove()
-        db.drop_all()
         self.app_context.pop()
 
     def _get_access_token(self):
@@ -206,7 +201,6 @@ class ChatbotTestCase(unittest.TestCase):
 
     def test_chat_language_preference(self):
         self.test_user.language_preference = "French"
-        db.session.commit()
         response = self.client.post(
             "/chat",
             headers={"Authorization": f"Bearer {self.access_token}"},

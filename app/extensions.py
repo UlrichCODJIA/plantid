@@ -1,3 +1,4 @@
+import os
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_jwt_extended import JWTManager, get_jwt_identity, verify_jwt_in_request
@@ -8,9 +9,10 @@ import boto3
 from app.managers.celery_manager import CeleryManager
 from app.managers.redis_manager import RedisManager
 
-s3 = boto3.client("s3")
-events = boto3.client("events")
-lambda_client = boto3.client("lambda")
+
+s3 = boto3.client("s3", region_name=os.environ.get("AWS_REGION"))
+events = boto3.client("events", region_name=os.environ.get("AWS_REGION"))
+lambda_client = boto3.client("lambda", region_name=os.environ.get("AWS_REGION"))
 jwt = JWTManager()
 session = Session()
 celery_manager = CeleryManager()

@@ -2,6 +2,7 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+import operator
 import logging
 from flask import Flask, request
 import whisper
@@ -29,6 +30,7 @@ from app.extensions import (
     swagger,
     limiter,
 )
+from app.chatbot.utils.translation.translation import TranslationService
 from app.metrics import log_latency, log_request, start_metrics_server
 from app.database import initialize_db
 
@@ -38,50 +40,65 @@ chat_logger = configure_logger(log_level=logging.DEBUG, log_file="logs/chat.log"
 
 
 def create_app(args):
-
     app = Flask(__name__)
-    if args.environment == "production":
+    if args.environment in ["production", "make_celery"]:
         app.config.from_object("app.config.ProdConfig")
     elif args.environment == "testing":
         app.config.from_object("app.config.TestConfig")
     else:
         app.config.from_object("app.config.DevConfig")
 
-    # Initialize prometheus metrics
-    @app.before_request
-    def before_request():
-        request.start_time = time.time()
-
-    @app.after_request
-    def after_request(response):
-        latency = time.time() - request.start_time
-        endpoint = request.endpoint
-        log_request(endpoint)
-        log_latency(endpoint, latency)
-        return response
-
     # Initialize extensions
     redis_manager.init_app(app)
-    initialize_db(app)
-    jwt.init_app(app)
-    session.init_app(app)
     celery_manager.init_app(app)
-    swagger.init_app(app)
-    limiter.init_app(app)
 
-    start_metrics_server()
+    if not args.environment == "make_celery":
+        # Initialize prometheus metrics
+        @app.before_request
+        def before_request():
+            request.start_time = time.time()
 
-    # Initialize models
-    init_models(app)
+        @app.after_request
+        def after_request(response):
+            latency = time.time() - request.start_time
+            endpoint = request.endpoint
+            log_request(endpoint)
+            log_latency(endpoint, latency)
+            return response
 
-    # Download nltk data
-    nltk.download("punkt")
-    nltk.download("stopwords")
+        # Initialize remaining extensions
+        initialize_db(app)
+        jwt.init_app(app)
+        session.init_app(app)
+        swagger.init_app(app)
+        limiter.init_app(app)
 
-    # Register blueprints
-    from app.chatbot import chatbot_blueprint
+        start_metrics_server()
 
-    app.register_blueprint(chatbot_blueprint)
+        # Initialize models
+        init_models(app)
+
+        # Download nltk data
+        nltk.download("punkt")
+        nltk.download("stopwords")
+
+        # Register blueprints
+        from app.chatbot.routes import chatbot_blueprint
+
+        app.register_blueprint(chatbot_blueprint)
+
+        @app.cli.command()
+        def routes():
+            "Display registered routes"
+            rules = []
+            for rule in app.url_map.iter_rules():
+                methods = ",".join(sorted(rule.methods))
+                rules.append((rule.endpoint, methods, str(rule)))
+
+            sort_by_rule = operator.itemgetter(2)
+            for endpoint, methods, rule in sorted(rules, key=sort_by_rule):
+                route = "{:50s} {:25s} {}".format(endpoint, methods, rule)
+                print(route)
 
     return app
 
@@ -89,8 +106,8 @@ def create_app(args):
 def init_translation_model(app):
     try:
         device = "gpu" if torch.cuda.is_available() else "cpu"
-        # with app.app_context():
-        #     app.mmt_params = TranslationService.load_model(device)
+        with app.app_context():
+            app.mmt_params = TranslationService.load_model(device)
         logger.info("MMTAFRICA model loaded successfully!")
 
     except Exception as e:
@@ -176,13 +193,13 @@ def init_models(app):
     init_sentence_embedding_model(app)
 
     # Initialize image recognition model
-    init_image_recognition_model(app)
+    # init_image_recognition_model(app)
 
     # Initialize LLL
-    init_llm(app)
+    # init_llm(app)
 
     # Initialize speech recognition models
-    init_speech_recognition_models(app)
+    # init_speech_recognition_models(app)
 
     # Initialize translation model
-    init_translation_model(app)
+    # init_translation_model(app)
