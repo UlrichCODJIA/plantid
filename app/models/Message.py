@@ -1,14 +1,15 @@
 from datetime import datetime
-from mongoengine import Document, StringField, DateTimeField, ReferenceField, URLField
+
+from mongoengine import Document, fields
 
 
 class Message(Document):
-    conversation_id = ReferenceField("Conversation", required=True)
-    text = StringField()
-    timestamp = DateTimeField(default=datetime.utcnow)
-    sender = StringField(required=True, choices=["user", "bot"])
-    image_url = URLField()
-    audio_data = StringField()
+    conversation_id = fields.ReferenceField("Conversation", required=True)
+    text = fields.StringField()
+    translated_text = fields.StringField()
+    timestamp = fields.DateTimeField(default=datetime.utcnow)
+    sender = fields.StringField(required=True, choices=["user", "bot"])
+    audio_data = fields.URLField()
 
     meta = {
         "indexes": [
@@ -24,8 +25,8 @@ class Message(Document):
             "id": str(self.id),
             "conversation_id": str(self.conversation_id.id),
             "text": self.text,
+            "translated_text": self.translated_text,
             "timestamp": self.timestamp.isoformat(),
             "sender": self.sender,
-            "image_url": self.image_url,
             "audio_data": self.audio_data,
         }

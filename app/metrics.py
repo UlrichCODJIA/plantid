@@ -8,7 +8,7 @@ REQUEST_LATENCY = Histogram(
 )
 
 
-def start_metrics_server(port=7000):
+def start_metrics_server(port=6000):
     start_http_server(port)
 
 

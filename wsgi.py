@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,8 +16,7 @@ if __name__ == "__main__":
         type=str,
         default="production",
         choices=["development", "production"],
-        help="Specify the app environment. Possible values: development, production."
-        " Default is development.",
+        help="Specify the app environment. Possible values: development, production." " Default is development.",
     )
     args = parser.parse_args()
     start_metrics_server(port=6000)

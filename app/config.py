@@ -1,6 +1,6 @@
-from datetime import timedelta
 import logging
 import os
+from datetime import timedelta
 
 
 class Config:
@@ -25,12 +25,16 @@ class Config:
 
     # Redis Configuration
     SESSION_TYPE = "redis"
-    REDIS_URL = os.environ.get("REDIS_URL")
+    REDIS_URL = os.environ.get("REDIS_URL") or "redis://localhost:6379"
+
+    # Rate Limiting Configuration
+    RATELIMIT_STORAGE_OPTIONS = {"socket_connect_timeout": 30}
+    RATELIMIT_STRATEGY = "moving-window"
 
     # Celery Configuration
     CELERY = dict(
-        broker_url=os.environ.get("REDIS_URL"),
-        result_backend=os.environ.get("REDIS_URL"),
+        broker_url=os.environ.get("CELERY_REDIS_URL"),
+        result_backend=os.environ.get("CELERY_REDIS_URL"),
         task_ignore_result=True,
         broker_connection_retry_on_startup=True,
         include=["app.tasks.tasks"],
@@ -62,6 +66,9 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
     ALLOWED_EXTENSIONS = {"wav", "jpg", "png"}
 
+    # Anthropic API key
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
     # Stability API credentials
     STABILITY_API_KEY = os.environ.get("STABILITY_API_KEY")
     STABILITY_API_HOST = os.environ.get("STABILITY_API_HOST")
@@ -72,6 +79,13 @@ class Config:
     # Eleven Labs API credentials
     ELEVEN_LABS_VOICE_ID = os.environ.get("ELEVEN_LABS_VOICE_ID")
     ELEVEN_LABS_API_KEY = os.environ.get("ELEVEN_LABS_API_KEY")
+
+    # NEOO4J Configuration
+    NEO4J_URL = os.environ.get("NEO4J_URL", "bolt://localhost:7687")
+    NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+    NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "neo4j")
+
+    BACKUP_STORAGE_PATH = os.environ.get("BACKUP_STORAGE_PATH", "backups")
 
 
 class ProdConfig(Config):

@@ -1,42 +1,42 @@
-import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
 import operator
-import logging
-from flask import Flask, request
-import whisper
-import nltk
+import sys
 import time
+import traceback
 
+import nltk
 import torch
-from logger import configure_logger
-from sentence_transformers import SentenceTransformer
-import tensorflow_hub as hub
-from transformers import (
-    # pipeline,
-    LlavaNextProcessor,
-    LlavaNextForConditionalGeneration,
-    AutoProcessor,
-    AutoModelForSpeechSeq2Seq,
-    AutoModelForCTC,
-)
-
-from app.extensions import (
-    jwt,
-    session,
-    celery_manager,
-    redis_manager,
-    swagger,
-    limiter,
-)
-from app.chatbot.utils.translation.translation import TranslationService
-from app.metrics import log_latency, log_request, start_metrics_server
+import whisper
+from app.chat.utils.translation.translation import TranslationService
 from app.database import initialize_db
+from app.extensions import (
+    anthropic_manager,
+    celery_manager,
+    jwt,
+    knowledge_graph,
+    logger,
+    redis_manager,
+    session,
+    swagger,
+)
+from app.metrics import log_latency, log_request
+from flask import Flask, request
+from sentence_transformers import SentenceTransformer
+from transformers import AutoModelForCTC, AutoModelForSpeechSeq2Seq, AutoProcessor
 
-logger = configure_logger(log_level=logging.DEBUG, log_file="logs/app.log")
 
-chat_logger = configure_logger(log_level=logging.DEBUG, log_file="logs/chat.log")
+def log_error(e, function_name):
+    logger.error(f"Error in {function_name}: {e}")
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    logger.error(f"Error Type: {exc_type.__name__}")
+    logger.error(f"Error Message: {str(e)}")
+    tb = traceback.extract_tb(exc_traceback)
+    filename, line_number, func_name, text = tb[-1]
+    logger.error(f"File: {filename}")
+    logger.error(f"Line Number: {line_number}")
+    logger.error(f"Function: {func_name}")
+    logger.error(f"Code: {text}")
+    logger.error("\nFull Traceback:")
+    traceback.print_exc()
 
 
 def create_app(args):
@@ -49,8 +49,9 @@ def create_app(args):
         app.config.from_object("app.config.DevConfig")
 
     # Initialize extensions
-    redis_manager.init_app(app)
+    redis_manager.init_app(app, init_limiter=True)
     celery_manager.init_app(app)
+    anthropic_manager.init_app(app)
 
     if not args.environment == "make_celery":
         # Initialize prometheus metrics
@@ -67,13 +68,13 @@ def create_app(args):
             return response
 
         # Initialize remaining extensions
-        initialize_db(app)
+        app.mongodb_client = initialize_db(app)
         jwt.init_app(app)
         session.init_app(app)
         swagger.init_app(app)
-        limiter.init_app(app)
+        knowledge_graph.init_app(app)
 
-        start_metrics_server()
+        # start_metrics_server()
 
         # Initialize models
         init_models(app)
@@ -83,7 +84,7 @@ def create_app(args):
         nltk.download("stopwords")
 
         # Register blueprints
-        from app.chatbot.routes import chatbot_blueprint
+        from app.api.chatbot import chatbot_blueprint
 
         app.register_blueprint(chatbot_blueprint)
 
@@ -100,6 +101,9 @@ def create_app(args):
                 route = "{:50s} {:25s} {}".format(endpoint, methods, rule)
                 print(route)
 
+    else:
+        init_speech_recognition_models(app)
+
     return app
 
 
@@ -111,7 +115,7 @@ def init_translation_model(app):
         logger.info("MMTAFRICA model loaded successfully!")
 
     except Exception as e:
-        logger.error(f"Failed to load MMTAFRICA model: {e}")
+        log_error(e, "init_translation_model")
         raise
 
 
@@ -120,47 +124,15 @@ def init_speech_recognition_models(app):
         with app.app_context():
             app.whisper_base_model = whisper.load_model("base")
 
-            # app.whisper_yoruba_pipeline = pipeline(
-            #     "automatic-speech-recognition", model="neoform-ai/whisper-medium-yoruba"
-            # )
-            app.whisper_yoruba_processor = AutoProcessor.from_pretrained(
-                "neoform-ai/whisper-medium-yoruba"
-            )
-            app.whisper_yoruba_model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                "neoform-ai/whisper-medium-yoruba"
-            )
-            # app.whisper_fon_pipeline = pipeline(
-            #     "automatic-speech-recognition", model="chrisjay/fonxlsr"
-            # )
-            app.whisper_fon_processor = AutoProcessor.from_pretrained(
-                "chrisjay/fonxlsr"
-            )
+            app.whisper_yoruba_processor = AutoProcessor.from_pretrained("neoform-ai/whisper-medium-yoruba")
+            app.whisper_yoruba_model = AutoModelForSpeechSeq2Seq.from_pretrained("neoform-ai/whisper-medium-yoruba")
+
+            app.whisper_fon_processor = AutoProcessor.from_pretrained("chrisjay/fonxlsr")
             app.whisper_fon_model = AutoModelForCTC.from_pretrained("chrisjay/fonxlsr")
         logger.info("Speech recognition models loaded successfully!")
 
     except Exception as e:
-        logger.error(f"Failed to load speech recognition models: {e}")
-        raise
-
-
-def init_llm(app):
-    try:
-        with app.app_context():
-            app.llava_processor = LlavaNextProcessor.from_pretrained(
-                "llava-hf/llava-v1.6-mistral-7b-hf"
-            )
-            app.llava_model = LlavaNextForConditionalGeneration.from_pretrained(
-                "llava-hf/llava-v1.6-mistral-7b-hf",
-                torch_dtype=torch.float16,
-                low_cpu_mem_usage=True,
-            )
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            if device == "cuda":
-                app.llava_model.to("cuda")
-        logger.info("LLM model loaded successfully!")
-
-    except Exception as e:
-        logger.error(f"Failed to load LLM: {e}")
+        log_error(e, "init_speech_recognition_models")
         raise
 
 
@@ -171,20 +143,7 @@ def init_sentence_embedding_model(app):
         logger.info("sentence embedding model loaded successfully!")
 
     except Exception as e:
-        logger.error(f"Failed to load sentence embedding model: {e}")
-        raise
-
-
-def init_image_recognition_model(app):
-    try:
-        with app.app_context():
-            app.image_recognition_model = hub.load(
-                "https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5"
-            )
-        logger.info("image recognition model loaded successfully!")
-
-    except Exception as e:
-        logger.error(f"Failed to load image recognition model: {e}")
+        log_error(e, "init_sentence_embedding_model")
         raise
 
 
@@ -192,14 +151,8 @@ def init_models(app):
     # Initialize sentence embedding model
     init_sentence_embedding_model(app)
 
-    # Initialize image recognition model
-    # init_image_recognition_model(app)
-
-    # Initialize LLL
-    # init_llm(app)
-
     # Initialize speech recognition models
-    # init_speech_recognition_models(app)
+    init_speech_recognition_models(app)
 
     # Initialize translation model
-    # init_translation_model(app)
+    init_translation_model(app)

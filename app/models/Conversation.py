@@ -1,39 +1,33 @@
 from datetime import datetime
-from mongoengine import (
-    Document,
-    StringField,
-    DateTimeField,
-    ReferenceField,
-    ListField,
-    DictField,
-)
+
+from mongoengine import Document, fields
 
 
 class Conversation(Document):
-    user_id = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-    title = StringField(required=True)
-    input_language = StringField()
-    output_language = StringField()
-    dialogue_state = StringField(default="greeting")
-    messages = ListField(ReferenceField("Message"))
+    user_id = fields.StringField(required=True)
+    timestamp = fields.DateTimeField(default=datetime.utcnow)
+    title = fields.StringField(required=True)
+    input_language = fields.StringField()
+    output_language = fields.StringField()
+    dialogue_state = fields.StringField(default="greeting")
+    messages = fields.ListField(fields.ReferenceField("Message"))
 
-    # Fields for tracking image generation task
-    image_task_id = StringField()
-    image_task_status = StringField(
-        default="SUCCESS", choices=["STARTED", "SUCCESS", "FAILURE", "PENDING"]
-    )
-    image_task_started_at = DateTimeField()
-    image_task_completed_at = DateTimeField()
+    safety_warnings_given = fields.ListField(fields.StringField())
+    consultation_reminder_given = fields.BooleanField(default=False)
 
     meta = {
         "indexes": [
             {
                 "fields": ["user_id", "timestamp"],
                 "unique": False,
-            }
+            },
         ]
     }
+
+    def add_safety_warning(self, warning):
+        if warning not in self.safety_warnings_given:
+            self.safety_warnings_given.append(warning)
+            self.save()
 
     def to_dict(self):
         return {
@@ -45,16 +39,6 @@ class Conversation(Document):
             "output_language": self.output_language,
             "dialogue_state": self.dialogue_state,
             "messages": [message.to_dict() for message in self.messages],
-            "image_task_id": self.image_task_id,
-            "image_task_status": self.image_task_status,
-            "image_task_started_at": (
-                self.image_task_started_at.isoformat()
-                if self.image_task_started_at
-                else None
-            ),
-            "image_task_completed_at": (
-                self.image_task_completed_at.isoformat()
-                if self.image_task_completed_at
-                else None
-            ),
+            "safety_warnings_given": self.safety_warnings_given,
+            "consultation_reminder_given": self.consultation_reminder_given,
         }

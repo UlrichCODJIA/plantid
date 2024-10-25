@@ -1,12 +1,19 @@
-from flask_jwt_extended import create_access_token
-from contextlib import contextmanager
-import tempfile
-import requests
-import time
 import logging
+import os
+import tempfile
+import time
+from contextlib import contextmanager
+from datetime import datetime
 from functools import wraps
 
-logger = logging.getLogger(__name__)
+import requests
+from app.models import AuditLog
+from flask import current_app, json
+from flask_jwt_extended import create_access_token
+from logger import configure_logger
+from rdkit.Chem import Descriptors
+
+logger = configure_logger(log_level=logging.DEBUG, log_file="logs/utils.log")
 
 
 def generate_microservice_token():
@@ -47,7 +54,6 @@ def retry_on_exception(retries=3, delay=5, exceptions=(Exception,)):
                     attempt += 1
                     logger.error(f"Error: {e}. Retrying in {delay} seconds...")
                     time.sleep(delay)
-            logger.error(f"Failed after {retries} attempts.")
             return None
 
         return wrapper
@@ -69,9 +75,7 @@ def validate_text(text):
         ValueError: If the input text is empty or contains only whitespace characters.
     """
     if not text or not text.strip():
-        raise ValueError(
-            "Input text cannot be empty or contain only whitespace characters."
-        )
+        raise ValueError("Input text cannot be empty or contain only whitespace characters.")
 
     return True
 
@@ -126,3 +130,136 @@ def handle_text_to_speech_error(error):
         return f"API request error: {str(error)}"
     else:
         return "An unexpected error occurred during text-to-speech conversion."
+
+
+def store_backup(backup_data):
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"plantid_backup_{timestamp}.json"
+    backup_path = os.path.join(current_app.config["BACKUP_STORAGE_PATH"], backup_filename)
+
+    with open(backup_path, "w") as f:
+        json.dump(backup_data, f)
+
+    return backup_filename
+
+
+def log_audit_event(user_id, action, details):
+    audit_log = AuditLog(user_id=user_id, action=action, details=details)
+    audit_log.save()
+
+
+def calculate_molecular_descriptors(mol):
+    """
+    Calculates molecular descriptors for a given molecule.
+
+    Args:
+        mol: RDKit molecule object
+
+    Returns:
+        dict: Calculated descriptors
+    """
+    descriptors = {
+        "mw": Descriptors.ExactMolWt(mol),
+        "logp": Descriptors.MolLogP(mol),
+        "hbd": Descriptors.NumHDonors(mol),
+        "hba": Descriptors.NumHAcceptors(mol),
+        "tpsa": Descriptors.TPSA(mol),
+        "rotatable_bonds": Descriptors.NumRotatableBonds(mol),
+    }
+    return descriptors
+
+
+def predict_molecular_targets(descriptors):
+    """
+    Predicts molecular targets based on calculated descriptors.
+    This is a simplified version - in reality, you'd use a more sophisticated ML model.
+
+    Args:
+        descriptors (dict): Molecular descriptors
+
+    Returns:
+        list: Predicted targets with confidence scores
+    """
+    # This is a placeholder implementation
+    potential_targets = [
+        "Serotonin receptor",
+        "Dopamine receptor",
+        "Glucocorticoid receptor",
+        "Cytochrome P450",
+        "Cannabinoid receptor",
+    ]
+
+    predictions = []
+    for target in potential_targets:
+        # Simplified scoring based on molecular properties
+        score = 0.0
+
+        if 300 < descriptors["mw"] < 500:
+            score += 0.2
+        if 0 < descriptors["logp"] < 5:
+            score += 0.2
+        if descriptors["hbd"] < 5:
+            score += 0.2
+        if descriptors["hba"] < 10:
+            score += 0.2
+        if descriptors["tpsa"] < 140:
+            score += 0.2
+
+        if score > 0.5:
+            predictions.append({"target": target, "confidence": round(score, 2)})
+
+    return sorted(predictions, key=lambda x: x["confidence"], reverse=True)
+
+
+def verify_written_consent(consent_info):
+    """
+    Verifies written consent.
+
+    Args:
+        consent_info (dict): Consent information
+
+    Returns:
+        bool: True if consent is verified, False otherwise
+    """
+    required_fields = ["provider_name", "signature", "date"]
+    if not all(field in consent_info for field in required_fields):
+        return False
+
+    # TODO: Add additional verification logic
+    return True
+
+
+def verify_verbal_consent(consent_info):
+    """
+    Verifies verbal consent.
+
+    Args:
+        consent_info (dict): Consent information
+
+    Returns:
+        bool: True if consent is verified, False otherwise
+    """
+    required_fields = ["provider_name", "witness", "date"]
+    if not all(field in consent_info for field in required_fields):
+        return False
+
+    # TODO: Add additional verification logic
+    return True
+
+
+def verify_community_consent(consent_info):
+    """
+    Verifies community consent.
+
+    Args:
+        consent_info (dict): Consent information
+
+    Returns:
+        bool: True if consent is verified, False otherwise
+    """
+    required_fields = ["community", "representative", "date"]
+    if not all(field in consent_info for field in required_fields):
+        return False
+
+    # TODO: Add additional verification logic
+    return True
