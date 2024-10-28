@@ -122,7 +122,7 @@ def init_translation_model(app):
 def init_speech_recognition_models(app):
     try:
         with app.app_context():
-            app.whisper_base_model = whisper.load_model("base")
+            app.whisper_base_model = whisper.load_model("base", device="cpu")
 
             app.whisper_yoruba_processor = AutoProcessor.from_pretrained("neoform-ai/whisper-medium-yoruba")
             app.whisper_yoruba_model = AutoModelForSpeechSeq2Seq.from_pretrained("neoform-ai/whisper-medium-yoruba")
@@ -149,7 +149,7 @@ def init_sentence_embedding_model(app):
 
 def init_models(app):
     # Initialize sentence embedding model
-    init_sentence_embedding_model(app)
+    # init_sentence_embedding_model(app)
 
     # Initialize speech recognition models
     init_speech_recognition_models(app)

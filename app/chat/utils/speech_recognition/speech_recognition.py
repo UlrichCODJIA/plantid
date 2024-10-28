@@ -1,7 +1,9 @@
 import functools
 from multiprocessing import Pool
 
+import librosa
 import tenacity
+import torch
 from app.chat.utils.speech_recognition.audio_processing import convert_to_wav, split_audio
 from app.extensions import logger
 from flask import current_app
@@ -27,9 +29,10 @@ def transcribe_audio(audio_path: str, language: str) -> str:
     """
     try:
         logger.info(f"Transcribing audio: {audio_path}")
-        transcript = current_app.whisper_base_model.transcribe(audio_path, language=language)
-        logger.info(f"Transcription complete: {transcript['text'][:50]}")
-        return transcript["text"]
+        transcription = current_app.whisper_base_model.transcribe(audio_path, language=language)
+        transcription = transcription["text"] if isinstance(transcription, dict) else transcription
+        logger.info(f"Transcription complete: {transcription[:50]}")
+        return transcription
     except Exception as e:
         print(f"Error transcribing audio: {e}")
         raise
@@ -54,8 +57,22 @@ def transcribe_yoruba(audio_path: str) -> str:
     """
     try:
         logger.info(f"Transcribing Yoruba audio: {audio_path}")
-        transcript = current_app.whisper_yoruba_model(audio_path)["text"]
-        return transcript
+        # Load and preprocess the audio
+        speech_array, sampling_rate = librosa.load(audio_path, sr=16000)
+        logger.info(f"Loaded Yoruba audio: {audio_path}")
+        inputs = current_app.whisper_yoruba_processor(speech_array, sampling_rate=16000, return_tensors="pt")
+        logger.info(f"Preprocessed Yoruba audio: {audio_path}")
+        # Generate transcription
+        generated_ids = current_app.whisper_yoruba_model.generate(
+            inputs.input_features,
+            forced_decoder_ids=current_app.whisper_yoruba_processor.get_decoder_prompt_ids(
+                language="yo", task="transcribe"
+            ),
+        )
+        logger.info("Generated Yoruba transcription")
+        transcription = current_app.whisper_yoruba_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        logger.info(f"Transcription complete: {transcription[:50]}")
+        return transcription
     except Exception as e:
         logger.error(f"Error transcribing Yoruba audio: {e}")
         raise
@@ -80,8 +97,19 @@ def transcribe_fon(audio_path: str) -> str:
     """
     try:
         logger.info(f"Transcribing Fon audio: {audio_path}")
-        transcript = current_app.whisper_fon_model(audio_path)["text"]
-        return transcript
+        # Load and preprocess the audio
+        speech_array, sampling_rate = librosa.load(audio_path, sr=16000)
+        logger.info(f"Loaded Fon audio: {audio_path}")
+        inputs = current_app.whisper_fon_processor(speech_array, sampling_rate=16000, return_tensors="pt")
+        logger.info(f"Preprocessed Fon audio: {audio_path}")
+        # Generate transcription
+        with torch.no_grad():
+            logits = current_app.whisper_fon_model(inputs.input_values).logits
+            predicted_ids = torch.argmax(logits, dim=-1)
+            transcription = current_app.whisper_fon_processor.batch_decode(predicted_ids)[0]
+        logger.info("Generated Fon transcription")
+        logger.info(f"Transcription complete: {transcription[:50]}")
+        return transcription
     except Exception as e:
         logger.error(f"Error transcribing Fon audio: {e}")
         raise

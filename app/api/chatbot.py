@@ -1,4 +1,4 @@
-import re
+import os
 import sys
 import time
 import traceback
@@ -120,9 +120,14 @@ def chat(conversation_id):
         user = response.user
 
         audio_file = request.files.get("audio_data")
-        print("request is: ", request)
-        print("audio_file is: ", audio_file)
         user_message = request.form.get("text")
+
+        if audio_file:
+            filename = audio_file.filename
+            file_ext = os.path.splitext(filename)[1].lower()
+            allowed_extensions = {".wav", ".mp3", ".ogg", ".m4a"}
+            if file_ext not in allowed_extensions:
+                return handle_error("Unsupported file format", 400)
 
         if user_message and audio_file:
             return handle_error("Please provide only one type of input", 400)

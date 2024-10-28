@@ -7,7 +7,8 @@ from app.chat.utils.translation.translation import TranslationService
 from app.extensions import chat_logger
 from app.tasks.tasks import transcribe_task
 from app.utils.utils import get_temp_file_path
-from celery.result import AsyncResult
+
+# from celery.result import AsyncResult
 
 
 def process_input(audio_file, text_input: str, language: str, user_id: str) -> Tuple[Optional[str], Optional[str]]:
@@ -18,9 +19,13 @@ def process_input(audio_file, text_input: str, language: str, user_id: str) -> T
 
     chat_logger.info(f"Processing input for user {user_id} in language: {language}")
 
+    print("audio_file", audio_file)
+
     try:
         if audio_file:
-            temp_file_path = get_temp_file_path(suffix=".wav")
+            filename = audio_file.filename
+            file_ext = os.path.splitext(filename)[1].lower()
+            temp_file_path = get_temp_file_path(suffix=file_ext)
             chat_logger.debug(f"Temporary file path: {temp_file_path}")
             audio_file.save(temp_file_path)
 
@@ -31,24 +36,24 @@ def process_input(audio_file, text_input: str, language: str, user_id: str) -> T
             chat_logger.debug(f"CloudWatch rule created for: {audio_object_key}")
 
             try:
-                transcription_result = transcribe_task.delay(temp_file_path, language)
+                transcript = transcribe_task(temp_file_path, language)
 
-                try:
-                    async_result = AsyncResult(transcription_result.id)
-                    transcript = async_result.get(timeout=300)  # 5 minutes timeout
+                # try:
+                #     async_result = AsyncResult(transcription_result.id)
+                #     transcript = async_result.get(timeout=300)  # 5 minutes timeout
 
-                    if async_result.successful():
-                        chat_logger.info(f"Transcription completed successfully: {transcript[:50]}...")
-                    elif async_result.failed():
-                        chat_logger.error(f"Transcription task failed: {async_result.result}")
-                        raise Exception("Transcription task failed")
-                    else:
-                        chat_logger.warning(f"Transcription task ended with unexpected status: {async_result.status}")
-                        raise Exception("Transcription task ended with unexpected status")
+                #     if async_result.successful():
+                #         chat_logger.info(f"Transcription completed successfully: {transcript[:50]}...")
+                #     elif async_result.failed():
+                #         chat_logger.error(f"Transcription task failed: {async_result.result}")
+                #         raise Exception("Transcription task failed")
+                #     else:
+                #         chat_logger.warning(f"Transcription task ended with unexpected status: {async_result.status}")
+                #         raise Exception("Transcription task ended with unexpected status")
 
-                except TimeoutError:
-                    chat_logger.error("Transcription task timed out after 5 minutes")
-                    raise Exception("Transcription took too long to complete")
+                # except TimeoutError:
+                #     chat_logger.error("Transcription task timed out after 5 minutes")
+                #     raise Exception("Transcription took too long to complete")
 
                 translated_text = (
                     TranslationService.get_translation(
